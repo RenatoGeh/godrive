@@ -32,14 +32,19 @@ func New(id int) (*Camera, error) {
 	return &Camera{c, gocv.NewMat(), gocv.NewMat(), win}, nil
 }
 
-func (C *Camera) Update(T func(src gocv.Mat, dist *gocv.Mat)) {
+// Update applies a transformation to the original video frame. If T is nil, then only apply
+// grayscale and resizing.
+func (C *Camera) Update(T func(src gocv.Mat, dst *gocv.Mat)) {
 	C.cam.Read(&C.img)
 	M := gocv.NewMat()
 	gocv.CvtColor(C.img, &M, gocv.ColorBGRToGray)
 	gocv.Resize(M, &M, dims, 0, 0, gocv.InterpolationNearestNeighbor)
-	T(M, &C.tImg)
+	if T != nil {
+		T(M, &C.tImg)
+	}
 }
 
+// Instance converts a gocv.Mat to an spn.VarSet.
 func (C *Camera) Instance() map[int]int {
 	buffer := C.tImg.DataPtrUint8()
 	I := make(map[int]int)
@@ -49,10 +54,19 @@ func (C *Camera) Instance() map[int]int {
 	return I
 }
 
-func (C *Camera) Draw() {
-	C.win.IMShow(C.img)
+// Draw draws the original video frame to a window. If D is not nil, then apply some drawing
+// function to it first.
+func (C *Camera) Draw(D func(src gocv.Mat, dst *gocv.Mat)) {
+	if D == nil {
+		C.win.IMShow(C.img)
+	} else {
+		out := gocv.NewMat()
+		D(C.img, &out)
+		C.win.IMShow(out)
+	}
 }
 
+// Close closes all buffers.
 func (C *Camera) Close() {
 	C.cam.Close()
 	C.win.Close()

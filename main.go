@@ -1,35 +1,52 @@
 package main
 
 import (
-	"fmt"
+	"github.com/RenatoGeh/godrive/bot"
+	"github.com/RenatoGeh/godrive/camera"
 	"github.com/RenatoGeh/godrive/data"
 	"github.com/RenatoGeh/godrive/models"
-	dataset "github.com/RenatoGeh/gospn/data"
-	"github.com/RenatoGeh/gospn/io"
-	"github.com/RenatoGeh/gospn/sys"
 )
 
-func main() {
-	n, m := 300, 300
-	R, L, T, U, S := data.Prepare(n, m)
-	Z := models.Gens(R, L, S)
-	models.Accuracy(Z, T, U, S)
-	return
-	DV := models.NewDVModel(S[data.ClassVarid])
-	fmt.Println("Learning...")
-	DV.Learn(R, L, S)
-	fmt.Println("Testing...")
-	DV.TestAccuracy(T, U)
-	return
-	sys.Verbose = false
-	N := models.GenerativeDennis(R, L, S)
-	models.Accuracy(N, T, U, S)
-	return
-	dirs := [3]string{"up", "left", "right"}
-	K := dataset.Split(R, S[data.ClassVarid].Categories, L)
-	for c, k := range K {
-		for i, I := range k {
-			io.VarSetToPGM(fmt.Sprintf("samples/%s/%d.pgm", dirs[c], i), I, data.Width, data.Height, data.Max-1)
-		}
+func Train(t, l string, n int, filename string) {
+	var M models.Model
+	if t == "dv" {
+		M = models.NewDVModel(data.ClassVar)
+	} else {
+		M = models.NewGensModel(data.ClassVar)
 	}
+
+	D, L, Sc := data.PrepareTrain(n)
+	if l == "gen" {
+		M.LearnGenerative(D, L, Sc)
+	} else if l == "disc" {
+		M.LearnDiscriminative(D, L, Sc)
+	} else {
+		M.LearnStructure(D, L, Sc)
+	}
+
+	M.Save(filename)
+}
+
+func Test(t string) {
+	var M models.Model
+	var err error
+	if t == "dv" {
+		M, err = models.LoadDVModel("saved/dv.mdl")
+	} else {
+		M, err = models.LoadGensModel("saved/dv.mdl")
+	}
+	if err != nil {
+		panic(err)
+	}
+	B, err := bot.New(0, M)
+	if err != nil {
+		panic(err)
+	}
+	defer B.Close()
+
+	B.SetTransform(camera.MakeQuantize(8))
+	B.Start()
+}
+
+func main() {
 }

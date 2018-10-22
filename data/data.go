@@ -38,6 +38,8 @@ const (
 var (
 	train_data = train_256
 	test_data  = test_256
+
+	ClassVar *learn.Variable
 )
 
 const (
@@ -115,7 +117,8 @@ func Prepare() map[int]*learn.Variable {
 	for i := 0; i < k; i++ {
 		S[i] = &learn.Variable{Varid: i, Categories: Max, Name: ""}
 	}
-	S[k] = &learn.Variable{Varid: k, Categories: 3, Name: "cmd"}
+	ClassVar = &learn.Variable{Varid: k, Categories: 3, Name: "cmd"}
+	S[k] = ClassVar
 	return S
 }
 
