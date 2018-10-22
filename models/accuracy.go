@@ -13,7 +13,7 @@ import (
 func Accuracy(S spn.SPN, T spn.Dataset, U []int, Sc map[int]*learn.Variable) {
 	score := score.NewScore()
 	sys.Verbose = true
-	score.EvaluatePosterior(T, U, S, Sc[data.ClassVarid])
+	score.EvaluatePosteriorConc(T, U, S, Sc[data.ClassVarid], -1)
 	sys.Verbose = false
 	fmt.Println(score)
 }

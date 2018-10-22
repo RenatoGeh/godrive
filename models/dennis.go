@@ -1,8 +1,8 @@
 package models
 
 import (
+	"encoding/binary"
 	"fmt"
-	"github.com/RenatoGeh/godrive/data"
 	"github.com/RenatoGeh/gospn/conc"
 	dataset "github.com/RenatoGeh/gospn/data"
 	"github.com/RenatoGeh/gospn/learn"
@@ -11,41 +11,48 @@ import (
 	"github.com/RenatoGeh/gospn/score"
 	"github.com/RenatoGeh/gospn/spn"
 	"github.com/RenatoGeh/gospn/utils"
+	"io/ioutil"
 	"math"
+	"os"
 	"sync"
 )
 
 const (
 	dClusters   = 1
 	dSumsRegion = 4
-	dGaussPixel = 4
-	dSimThresh  = 0.95
+	dGaussPixel = 16
+	dSimThresh  = 0.975
 )
 
 // DVModel is an SPN based on the Dennis-Ventura algorithm (gospn/learn/dennis), but optimized for
 // parallel programming. We assume that we have at least 4 CPU cores (e.g. Raspberry Pi B+).
 type DVModel struct {
-	S []spn.SPN       // Each sub-SPN S[i] is restricted to label i.
-	Y *learn.Variable // Y is the query variable. Namely the direction variable.
-	T []*spn.Storer   // DP tables must be disjoint to be parallelized.
+	S     []spn.SPN       // Each sub-SPN S[i] is restricted to label i.
+	Y     *learn.Variable // Y is the query variable. Namely the direction variable.
+	T     []*spn.Storer   // DP tables must be disjoint to be parallelized.
+	procs int             // Number of processes to use for inference.
 }
 
-var (
-	defParam *parameters.P
-)
-
-func init() {
-	defParam = parameters.New(true, false, 0.01, parameters.HardGD, 0.01, 1.0, 0, 0.1, 4)
+// NewDVModel creates a new DVModel.
+func NewDVModel(Y *learn.Variable) *DVModel {
+	S := make([]spn.SPN, Y.Categories)
+	T := make([]*spn.Storer, Y.Categories)
+	for i := 0; i < Y.Categories; i++ {
+		T[i] = spn.NewStorer()
+		T[i].NewTicket()
+	}
+	return &DVModel{S, Y, T, 3}
 }
 
-func GenerativeDennis(D spn.Dataset, L []int, Sc map[int]*learn.Variable) spn.SPN {
+// LearnStructure learns only the DV structure.
+func (M *DVModel) LearnStructure(D spn.Dataset, L []int, Sc map[int]*learn.Variable) {
 	Q := conc.NewSingleQueue(-1)
 	mu := &sync.Mutex{}
 
-	cv := Sc[data.ClassVarid]
+	cv := M.Y
 	c := cv.Categories
 	K := dataset.Split(D, c, L)
-	root := spn.NewSum()
+	S := M.S
 	for i := 0; i < c; i++ {
 		if len(K[i]) <= 0 {
 			continue
@@ -59,35 +66,22 @@ func GenerativeDennis(D spn.Dataset, L []int, Sc map[int]*learn.Variable) spn.SP
 				}
 			}
 			mu.Unlock()
-			S := dennis.Structure(K[id], lsc, dClusters, dSumsRegion, dGaussPixel, dSimThresh)
-			parameters.Bind(S, defParam)
-			learn.Generative(S, K[id])
-			pi := spn.NewProduct()
-			pi.AddChild(S)
-			pi.AddChild(spn.NewIndicator(cv.Varid, id))
-			mu.Lock()
-			root.AddChildW(pi, 1.0/float64(c))
-			mu.Unlock()
+			Z := dennis.Structure(K[id], lsc, dClusters, dSumsRegion, dGaussPixel, dSimThresh)
+			S[id] = Z
 		}, i)
 	}
 	Q.Wait()
-	return root
-	//T := dataset.MergeLabel(D, L, Sc[data.ClassVarid])
-	//S := dennis.Structure(T, Sc, dClusters, dSumsRegion, dGaussPixel, dSimThresh)
-	//parameters.Bind(S, defParam)
-	//learn.Generative(S, D)
-	//return S
 }
 
-func DiscriminativeDennis(D spn.Dataset, L []int, Sc map[int]*learn.Variable) spn.SPN {
+// LearnGenerative fits the DVModel to the dataset (D, L) and scope Sc.
+func (M *DVModel) LearnGenerative(D spn.Dataset, L []int, Sc map[int]*learn.Variable) {
 	Q := conc.NewSingleQueue(-1)
 	mu := &sync.Mutex{}
 
-	cv := Sc[data.ClassVarid]
-	Y := []*learn.Variable{cv}
+	cv := M.Y
 	c := cv.Categories
 	K := dataset.Split(D, c, L)
-	root := spn.NewSum()
+	S := M.S
 	for i := 0; i < c; i++ {
 		if len(K[i]) <= 0 {
 			continue
@@ -96,37 +90,22 @@ func DiscriminativeDennis(D spn.Dataset, L []int, Sc map[int]*learn.Variable) sp
 			mu.Lock()
 			lsc := make(map[int]*learn.Variable)
 			for k, v := range Sc {
-				lsc[k] = v
+				if k != cv.Varid {
+					lsc[k] = v
+				}
 			}
 			mu.Unlock()
-			S := dennis.Structure(K[id], lsc, dClusters, dSumsRegion, dGaussPixel, dSimThresh)
-			parameters.Bind(S, defParam)
-			learn.Discriminative(S, K[id], Y)
-			pi := spn.NewProduct()
-			pi.AddChild(S)
-			pi.AddChild(spn.NewIndicator(cv.Varid, id))
-			mu.Lock()
-			root.AddChildW(pi, 1.0/float64(c))
-			mu.Unlock()
+			Z := dennis.Structure(K[id], lsc, dClusters, dSumsRegion, dGaussPixel, dSimThresh)
+			parameters.Bind(Z, defParam)
+			learn.Generative(Z, K[id])
+			S[id] = Z
 		}, i)
 	}
 	Q.Wait()
-	return root
 }
 
-// NewDVModel creates a new DVModel.
-func NewDVModel(Y *learn.Variable) *DVModel {
-	S := make([]spn.SPN, Y.Categories)
-	T := make([]*spn.Storer, Y.Categories)
-	for i := 0; i < Y.Categories; i++ {
-		T[i] = spn.NewStorer()
-		T[i].NewTicket()
-	}
-	return &DVModel{S, Y, T}
-}
-
-// Learn fits the DVModel to the dataset (D, L) and scope Sc.
-func (M *DVModel) Learn(D spn.Dataset, L []int, Sc map[int]*learn.Variable) {
+// LearnDiscriminative fits the DVModel to the dataset (D, L) and scope Sc.
+func (M *DVModel) LearnDiscriminative(D spn.Dataset, L []int, Sc map[int]*learn.Variable) {
 	Q := conc.NewSingleQueue(-1)
 	mu := &sync.Mutex{}
 
@@ -158,20 +137,17 @@ func (M *DVModel) Learn(D spn.Dataset, L []int, Sc map[int]*learn.Variable) {
 
 // Infer takes an instance X and returns argmax_y P(Y=y|X), where Y is the query variable set on
 // construction. Returns the most probable label and its probability.
-func (M *DVModel) Infer(I spn.VarSet) (int, float64) {
-	Q := conc.NewSingleQueue(-1)
-	mu := &sync.Mutex{}
+func (M *DVModel) Infer(I spn.VarSet) (int, []float64) {
+	Q := conc.NewSingleQueue(M.procs)
 	c := M.Y.Categories
 	v := M.Y.Varid
 	P := make([]float64, c)
 	for i := 0; i < c; i++ {
 		Q.Run(func(id int) {
 			nI := make(map[int]int)
-			mu.Lock()
-			for k, v := range I {
-				nI[k] = v
+			for k, u := range I {
+				nI[k] = u
 			}
-			mu.Unlock()
 			Z := M.S[id]
 			B := M.T[id]
 			spn.StoreInference(Z, nI, 0, B)
@@ -185,11 +161,9 @@ func (M *DVModel) Infer(I spn.VarSet) (int, float64) {
 	for i := 0; i < c; i++ {
 		Q.Run(func(id int) {
 			nI := make(map[int]int)
-			mu.Lock()
-			for k, v := range I {
-				nI[k] = v
+			for k, u := range I {
+				nI[k] = u
 			}
-			mu.Unlock()
 			nI[v] = id
 			Z := M.S[id]
 			B := M.T[id]
@@ -202,11 +176,13 @@ func (M *DVModel) Infer(I spn.VarSet) (int, float64) {
 	Q.Wait()
 	ml, mp := -1, math.Inf(-1)
 	for i, pi := range P {
-		if p := pi - pe; p > mp {
+		p := pi - pe
+		P[i] = p
+		if p > mp {
 			ml, mp = i, p
 		}
 	}
-	return ml, mp
+	return ml, P
 }
 
 func (M *DVModel) TestAccuracy(D spn.Dataset, L []int) {
@@ -220,4 +196,59 @@ func (M *DVModel) TestAccuracy(D spn.Dataset, L []int) {
 		I[v] = u
 	}
 	fmt.Println(score)
+}
+
+func (M *DVModel) Save(filename string) error {
+	f, err := os.Create(filename)
+	defer f.Close()
+	if err != nil {
+		return err
+	}
+	f.Write([]byte{byte(M.Y.Categories), byte(M.procs)})
+	for _, S := range M.S {
+		bytes := spn.Marshal(S)
+		var n uint64 = uint64(len(bytes))
+		nb := make([]byte, 8)
+		binary.LittleEndian.PutUint64(nb, n)
+		bytes = append(nb, bytes...)
+		f.Write(bytes)
+	}
+	bytes, err := M.Y.GobEncode()
+	if err != nil {
+		return err
+	}
+	f.Write(bytes)
+	return nil
+}
+
+func LoadDVModel(filename string) (*DVModel, error) {
+	bytes, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	var n int = int(bytes[0])
+	var procs int = int(bytes[1])
+	M := &DVModel{}
+	M.S = make([]spn.SPN, n)
+	M.T = make([]*spn.Storer, n)
+	M.procs = procs
+	for i := 0; i < n; i++ {
+		M.T[i] = spn.NewStorer()
+		M.T[i].NewTicket()
+	}
+	bytes = bytes[2:]
+	for i := 0; i < n; i++ {
+		mb := bytes[:8]
+		bytes = bytes[8:]
+		m := binary.LittleEndian.Uint64(mb)
+		ms := bytes[:m]
+		bytes = bytes[m:]
+		M.S[i] = spn.Unmarshal(ms)
+	}
+	M.Y = &learn.Variable{}
+	err = M.Y.GobDecode(bytes)
+	if err != nil {
+		return nil, err
+	}
+	return M, nil
 }

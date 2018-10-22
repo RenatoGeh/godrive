@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestPrepare(t *testing.T) {
+func TestPrepareSample(t *testing.T) {
 	M := []int{50, 75, 100}
 	for _, m := range M {
 		for _, n := range M {
