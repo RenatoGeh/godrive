@@ -20,7 +20,7 @@ import (
 const (
 	dClusters   = 1
 	dSumsRegion = 4
-	dGaussPixel = 16
+	dGaussPixel = 4
 	dSimThresh  = 0.975
 )
 

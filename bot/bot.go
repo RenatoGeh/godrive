@@ -8,14 +8,20 @@ import (
 	"gocv.io/x/gocv"
 	"image"
 	"image/color"
+	"math"
 	"os"
 	"sync"
+	"time"
 )
 
 var (
 	commands = [3]string{"UP", "LEFT", "RIGHT"}
 	blue     = color.RGBA{0, 0, 255, 0}
-	textPt   = image.Point{10, 10}
+	red      = color.RGBA{255, 0, 0, 0}
+	upPt     = image.Point{25, 25}
+	leftPt   = image.Point{25, 50}
+	rightPt  = image.Point{25, 75}
+	predPt   = image.Point{25, 100}
 )
 
 type instance struct {
@@ -57,9 +63,14 @@ func (B *Bot) DoCamera() {
 		B.cam.Update(B.t)
 		B.cam.Draw(func(src gocv.Mat, dst *gocv.Mat) {
 			src.CopyTo(dst)
-			text := fmt.Sprintf("Pr(X=UP) = %.3f\nPr(X=LEFT) = %.3f\nPr(X=RIGHT) = %.3f\nPredicted: %s",
-				B.inst.P[0], B.inst.P[1], B.inst.P[2], commands[B.inst.C])
-			gocv.PutText(dst, text, textPt, gocv.FontHersheySimplex, 0.5, blue, 1)
+			up := fmt.Sprintf("Pr(X=UP) = %.3f", math.Exp(B.inst.P[0]))
+			left := fmt.Sprintf("Pr(X=LEFT) = %.3f", math.Exp(B.inst.P[1]))
+			right := fmt.Sprintf("Pr(X=RIGHT) = %.3f", math.Exp(B.inst.P[2]))
+			pred := fmt.Sprintf("Predicted: %s", commands[B.inst.C])
+			gocv.PutText(dst, up, upPt, gocv.FontHersheySimplex, 0.5, blue, 2)
+			gocv.PutText(dst, left, leftPt, gocv.FontHersheySimplex, 0.5, blue, 2)
+			gocv.PutText(dst, right, rightPt, gocv.FontHersheySimplex, 0.5, blue, 2)
+			gocv.PutText(dst, pred, predPt, gocv.FontHersheySimplex, 0.5, red, 2)
 		})
 		B.inst.L.Lock()
 		B.inst.I = B.cam.Instance()
@@ -73,6 +84,9 @@ func (B *Bot) DoCamera() {
 
 func (B *Bot) DoInference() {
 	for {
+		if B.inst.I == nil {
+			continue
+		}
 		B.inst.L.Lock()
 		I := make(map[int]int)
 		for k, v := range B.inst.I {
@@ -95,6 +109,7 @@ func (B *Bot) Start() {
 
 	fmt.Println("Started bot.")
 	go func() {
+		defer wait.Done()
 		fmt.Println("Press 'q' and enter to end the bot's life. :(")
 		for {
 			in := bufio.NewReaderSize(os.Stdin, 1)
@@ -107,11 +122,14 @@ func (B *Bot) Start() {
 	}()
 
 	go func() {
+		defer wait.Done()
 		go B.DoCamera()
 		go B.DoInference()
 	}()
 
 	wait.Wait()
+	fmt.Println("Preparing to shutdown...")
+	time.Sleep(2 * time.Second) // Wait for everything to end.
 	fmt.Println("Bye!")
 }
 

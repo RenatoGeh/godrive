@@ -18,7 +18,7 @@ func MakeQuantize(max int) func(gocv.Mat, *gocv.Mat) {
 	return func(src gocv.Mat, dst *gocv.Mat) {
 		k := float32(max) / 255.0
 		src.CopyTo(dst)
-		dst.DivideFloat(k)
+		dst.MultiplyFloat(k)
 	}
 }
 

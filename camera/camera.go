@@ -23,11 +23,10 @@ type Camera struct {
 
 // New creates a new Camera. Parameter id is the USB device ID to be used.
 func New(id int) (*Camera, error) {
-	c, err := gocv.OpenVideoCapture(id)
+	c, err := gocv.OpenVideoCapture(0)
 	if err != nil {
 		return nil, err
 	}
-	c.Set(gocv.VideoCaptureFPS, 1)
 	win := gocv.NewWindow("Camera")
 	return &Camera{c, gocv.NewMat(), gocv.NewMat(), win}, nil
 }
@@ -63,6 +62,7 @@ func (C *Camera) Draw(D func(src gocv.Mat, dst *gocv.Mat)) {
 		out := gocv.NewMat()
 		D(C.img, &out)
 		C.win.IMShow(out)
+		C.win.WaitKey(1)
 	}
 }
 

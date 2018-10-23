@@ -36,8 +36,8 @@ const (
 )
 
 var (
-	train_data = train_256
-	test_data  = test_256
+	train_data = train_008_eq
+	test_data  = test_008_eq
 
 	ClassVar *learn.Variable
 )
@@ -45,7 +45,7 @@ var (
 const (
 	Width  = 80
 	Height = 45
-	Max    = 256
+	Max    = 8
 
 	ClassVarid = Width * Height
 )
