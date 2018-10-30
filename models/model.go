@@ -28,5 +28,5 @@ var (
 )
 
 func init() {
-	defParam = parameters.New(true, false, 0.01, parameters.HardGD, 1.0, 1.0, 1, 0.01, 30)
+	defParam = parameters.New(true, false, 0.01, parameters.HardGD, 1.0, 0.1, 1, 0.001, 30)
 }

@@ -3,6 +3,7 @@ package models
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/RenatoGeh/godrive/data"
 	"github.com/RenatoGeh/gospn/conc"
 	dataset "github.com/RenatoGeh/gospn/data"
 	"github.com/RenatoGeh/gospn/learn"
@@ -196,6 +197,7 @@ func (M *DVModel) TestAccuracy(D spn.Dataset, L []int) {
 		I[v] = u
 	}
 	fmt.Println(score)
+	printCM(score.ConfusionMatrix(data.ClassVar.Categories), len(D))
 }
 
 func (M *DVModel) Save(filename string) error {

@@ -33,19 +33,26 @@ const (
 	test_032_eq  = "data/test_5_eq.npy"
 	test_016_eq  = "data/test_4_eq.npy"
 	test_008_eq  = "data/test_3_eq.npy"
+
+	UP    = 0
+	LEFT  = 1
+	RIGHT = 2
 )
 
 var (
+	DIRS = [3]string{"up", "left", "right"}
+
 	train_data = train_008_eq
 	test_data  = test_008_eq
 
 	ClassVar *learn.Variable
+
+	Max = 8
 )
 
 const (
 	Width  = 80
 	Height = 45
-	Max    = 8
 
 	ClassVarid = Width * Height
 )
@@ -127,4 +134,12 @@ func PrepareTrain(n int) (spn.Dataset, []int, map[int]*learn.Variable) {
 	S := Prepare()
 	D, L := pullTrain(train_data, n)
 	return D, L, S
+}
+
+// PrepareFrom takes an integer n of samples, m of max pixel value and trains through a dataset
+// filename.
+func PrepareFrom(n, m int, filename string) (spn.Dataset, []int, map[int]*learn.Variable) {
+	train_data = filename
+	Max = m
+	return PrepareTrain(n)
 }

@@ -103,6 +103,7 @@ func (M *GensModel) TestAccuracy(D spn.Dataset, L []int) {
 		I[v] = u
 	}
 	fmt.Println(score)
+	printCM(score.ConfusionMatrix(data.ClassVar.Categories), len(D))
 }
 
 func (M *GensModel) Save(filename string) error {
