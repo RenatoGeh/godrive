@@ -1,4 +1,19 @@
+# Logs
+*.txt
+*.put
+
+# SPN models
+*.mdl
+*.spn
+
+# Datasets
+*.npy
+
+# Python
+*.py
+
 # Binaries for programs and plugins
+godrive
 *.exe
 *.exe~
 *.dll

@@ -34,6 +34,7 @@ type instance struct {
 
 type Bot struct {
 	cam  *camera.Camera
+	usb  *Port
 	mdl  models.Model
 	t    func(src gocv.Mat, dst *gocv.Mat)
 	inst instance
@@ -45,7 +46,8 @@ func New(id int, M models.Model) (*Bot, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Bot{C, M, nil, instance{
+	P := NewPort()
+	return &Bot{C, P, M, nil, instance{
 		nil,
 		[]float64{0, 0, 0},
 		[]float64{0, 0, 0},
@@ -96,6 +98,7 @@ func (B *Bot) DoInference() {
 		c, P := B.mdl.Infer(I)
 		B.inst.lP = P
 		B.inst.C = c
+		B.usb.Write([]byte{byte(c)})
 		if B.quit {
 			return
 		}

@@ -142,41 +142,30 @@ func (M *DVModel) Infer(I spn.VarSet) (int, []float64) {
 	Q := conc.NewSingleQueue(M.procs)
 	c := M.Y.Categories
 	v := M.Y.Varid
-	P := make([]float64, c)
+	P := make([]float64, c<<1)
 	for i := 0; i < c; i++ {
 		Q.Run(func(id int) {
 			nI := make(map[int]int)
 			for k, u := range I {
 				nI[k] = u
 			}
-			Z := M.S[id]
-			B := M.T[id]
-			spn.StoreInference(Z, nI, 0, B)
-			pe, _ := B.Single(0, Z)
-			B.Reset(0)
-			P[id] = pe
-		}, i)
-	}
-	Q.Wait()
-	pe := utils.LogSumExp(P)
-	for i := 0; i < c; i++ {
-		Q.Run(func(id int) {
-			nI := make(map[int]int)
-			for k, u := range I {
-				nI[k] = u
-			}
-			nI[v] = id
 			Z := M.S[id]
 			B := M.T[id]
 			spn.StoreInference(Z, nI, 0, B)
 			p, _ := B.Single(0, Z)
 			B.Reset(0)
 			P[id] = p
+			nI[v] = id
+			spn.StoreInference(Z, nI, 0, B)
+			p, _ = B.Single(0, Z)
+			B.Reset(0)
+			P[id+c] = p
 		}, i)
 	}
 	Q.Wait()
+	pe := utils.LogSumExp(P[:c])
 	ml, mp := -1, math.Inf(-1)
-	for i, pi := range P {
+	for i, pi := range P[c:] {
 		p := pi - pe
 		P[i] = p
 		if p > mp {
