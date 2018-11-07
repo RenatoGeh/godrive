@@ -34,8 +34,10 @@ func NewPort() *Port {
 	D, err := ctx.OpenDevices(func(desc *gousb.DeviceDesc) bool {
 		return desc.Vendor == vid && desc.Product == pid
 	})
-	for _, d := range D[1:] {
-		defer d.Close()
+	if len(D) > 0 {
+		for _, d := range D[1:] {
+			defer d.Close()
+		}
 	}
 	if err != nil {
 		panic(err)

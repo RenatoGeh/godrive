@@ -63,8 +63,8 @@ func Test(t, filename string) {
 	defer B.Close()
 	data.Prepare()
 
-	B.SetTransform(camera.MakeQuantize(7))
 	B.Start()
+	B.SetTransform(camera.MakeQuantize(7))
 }
 
 func Sample(t, filename string, m int, tname string) {
@@ -94,12 +94,16 @@ func Sample(t, filename string, m int, tname string) {
 }
 
 func main() {
-	if n := len(os.Args); n > 8 || n < 4 {
-		fmt.Printf("Usage: %s r^t^s filename dv^gens g^d^s n [m] [tname]\n", os.Args[0])
+	if n := len(os.Args); n == 2 && os.Args[1] == "c" {
+		ConStart()
+		return
+	} else if n > 8 || n < 4 {
+		fmt.Printf("Usage: %s r^t^s^c filename dv^gens g^d^s n [m] [tname]\n", os.Args[0])
 		fmt.Println("  The character ^ is used to symbolize XOR.")
 		fmt.Println("    t        - test a model given by filename and run the bot")
 		fmt.Println("    r        - train a model")
 		fmt.Println("    s        - test model on a test dataset")
+		fmt.Println("    c        - NXT connection test")
 		fmt.Println("    filename - model to be loaded or saved to")
 		fmt.Println("    dv^gens  - either use the Dennis-Ventura (dv) or Gens (gens) model")
 		fmt.Println("  Test (t) arguments:")
@@ -113,6 +117,7 @@ func main() {
 		fmt.Println("    tname    - training set name")
 		return
 	}
+
 	if mode := os.Args[1]; mode == "r" {
 		n, err := strconv.Atoi(os.Args[5])
 		if err != nil {

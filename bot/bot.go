@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/RenatoGeh/godrive/camera"
 	"github.com/RenatoGeh/godrive/models"
+	"github.com/RenatoGeh/gospn/sys"
 	"gocv.io/x/gocv"
 	"image"
 	"image/color"
@@ -12,6 +13,11 @@ import (
 	"os"
 	"sync"
 	"time"
+)
+
+const (
+	QUIT byte = 0x03
+	NOOP byte = 0x04
 )
 
 var (
@@ -90,16 +96,17 @@ func (B *Bot) DoInference() {
 			continue
 		}
 		B.inst.L.Lock()
-		I := make(map[int]int)
-		for k, v := range B.inst.I {
-			I[k] = v
-		}
+		I := B.inst.I
 		B.inst.L.Unlock()
+		sys.StartTimer()
 		c, P := B.mdl.Infer(I)
 		B.inst.lP = P
 		B.inst.C = c
+		d := sys.StopTimer()
+		fmt.Printf("Predicted: %d and took %s.\n", c, d)
 		B.usb.Write([]byte{byte(c)})
 		if B.quit {
+			B.usb.Write([]byte{QUIT})
 			return
 		}
 	}
