@@ -11,6 +11,8 @@ import (
 	"github.com/RenatoGeh/gospn/sys"
 	"os"
 	"strconv"
+
+	"runtime/pprof"
 )
 
 func Train(t, l string, n int, filename string, m int, tname string) {
@@ -133,6 +135,14 @@ func main() {
 			Train(os.Args[3], os.Args[4], n, os.Args[2], -1, "")
 		}
 	} else if mode == "t" {
+		f, err := os.Create("cpu.prof")
+		if err != nil {
+			panic(err)
+		}
+		if err := pprof.StartCPUProfile(f); err != nil {
+			panic(err)
+		}
+		defer pprof.StopCPUProfile()
 		Test(os.Args[3], os.Args[2])
 	} else if mode == "s" {
 		if len(os.Args) == 6 {

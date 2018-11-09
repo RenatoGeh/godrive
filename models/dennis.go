@@ -11,7 +11,6 @@ import (
 	"github.com/RenatoGeh/gospn/learn/parameters"
 	"github.com/RenatoGeh/gospn/score"
 	"github.com/RenatoGeh/gospn/spn"
-	"github.com/RenatoGeh/gospn/utils"
 	"io/ioutil"
 	"math"
 	"os"
@@ -142,35 +141,22 @@ func (M *DVModel) Infer(I spn.VarSet) (int, []float64) {
 	Q := conc.NewSingleQueue(M.procs)
 	c := M.Y.Categories
 	v := M.Y.Varid
-	P := make([]float64, c<<1)
+	P := make([]float64, c)
 	for i := 0; i < c; i++ {
 		Q.Run(func(id int) {
-			nI := make(map[int]int)
-			for k, u := range I {
-				nI[k] = u
-			}
 			Z := M.S[id]
-			B := M.T[id]
-			spn.StoreInference(Z, nI, 0, B)
-			p, _ := B.Single(0, Z)
-			B.Reset(0)
-			P[id] = p
-			nI[v] = id
-			spn.StoreInference(Z, nI, 0, B)
-			p, _ = B.Single(0, Z)
-			B.Reset(0)
-			P[id+c] = p
+			p := spn.InferenceY(Z, I, v, id)
+			P[id] = math.Exp(p)
 		}, i)
 	}
 	Q.Wait()
-	pe := utils.LogSumExp(P[:c])
+	pe := P[0] + P[1] + P[2]
 	ml, mp := -1, math.Inf(-1)
-	for i, pi := range P[c:] {
-		p := pi - pe
-		P[i] = p
+	for i, p := range P {
 		if p > mp {
 			ml, mp = i, p
 		}
+		P[i] = p / pe
 	}
 	return ml, P
 }

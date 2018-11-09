@@ -59,35 +59,24 @@ func (M *GensModel) LearnDiscriminative(D spn.Dataset, L []int, Sc map[int]*lear
 }
 
 func (M *GensModel) Infer(I spn.VarSet) (int, []float64) {
-	spn.StoreInference(M.S, I, 0, M.T[0])
-	pe, _ := M.T[0].Single(0, M.S)
-	M.T[0].Reset(0)
 	Q := conc.NewSingleQueue(M.procs)
 	c := M.Y.Categories
 	v := M.Y.Varid
 	P := make([]float64, c)
 	for i := 0; i < c; i++ {
 		Q.Run(func(id int) {
-			nI := make(map[int]int)
-			for k, u := range I {
-				nI[k] = u
-			}
-			nI[v] = id
-			B := M.T[id]
-			spn.StoreInference(M.S, nI, 0, B)
-			p, _ := B.Single(0, M.S)
-			B.Reset(0)
-			P[id] = p
+			p := spn.InferenceY(M.S, I, v, id)
+			P[id] = math.Exp(p)
 		}, i)
 	}
 	Q.Wait()
+	pe := P[0] + P[1] + P[2]
 	ml, mp := -1, math.Inf(-1)
-	for i, pi := range P {
-		p := pi - pe
-		P[i] = p
+	for i, p := range P {
 		if p > mp {
 			ml, mp = i, p
 		}
+		P[i] = p / pe
 	}
 	return ml, P
 }

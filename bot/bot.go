@@ -1,7 +1,6 @@
 package bot
 
 import (
-	"bufio"
 	"fmt"
 	"github.com/RenatoGeh/godrive/camera"
 	"github.com/RenatoGeh/godrive/models"
@@ -9,8 +8,6 @@ import (
 	"gocv.io/x/gocv"
 	"image"
 	"image/color"
-	"math"
-	"os"
 	"sync"
 	"time"
 )
@@ -52,7 +49,8 @@ func New(id int, M models.Model) (*Bot, error) {
 	if err != nil {
 		return nil, err
 	}
-	P := NewPort()
+	//P := NewPort()
+	var P *Port
 	return &Bot{C, P, M, nil, instance{
 		nil,
 		[]float64{0, 0, 0},
@@ -71,18 +69,16 @@ func (B *Bot) DoCamera() {
 		B.cam.Update(B.t)
 		B.cam.Draw(func(src gocv.Mat, dst *gocv.Mat) {
 			src.CopyTo(dst)
-			up := fmt.Sprintf("Pr(X=UP) = %.3f", math.Exp(B.inst.P[0]))
-			left := fmt.Sprintf("Pr(X=LEFT) = %.3f", math.Exp(B.inst.P[1]))
-			right := fmt.Sprintf("Pr(X=RIGHT) = %.3f", math.Exp(B.inst.P[2]))
+			up := fmt.Sprintf("Pr(X=UP) = %.3f", B.inst.P[0])
+			left := fmt.Sprintf("Pr(X=LEFT) = %.3f", B.inst.P[1])
+			right := fmt.Sprintf("Pr(X=RIGHT) = %.3f", B.inst.P[2])
 			pred := fmt.Sprintf("Predicted: %s", commands[B.inst.C])
 			gocv.PutText(dst, up, upPt, gocv.FontHersheySimplex, 0.5, blue, 2)
 			gocv.PutText(dst, left, leftPt, gocv.FontHersheySimplex, 0.5, blue, 2)
 			gocv.PutText(dst, right, rightPt, gocv.FontHersheySimplex, 0.5, blue, 2)
 			gocv.PutText(dst, pred, predPt, gocv.FontHersheySimplex, 0.5, red, 2)
 		})
-		B.inst.L.Lock()
 		B.inst.I = B.cam.Instance()
-		B.inst.L.Unlock()
 		B.inst.P = B.inst.lP
 		if B.quit {
 			return
@@ -95,49 +91,38 @@ func (B *Bot) DoInference() {
 		if B.inst.I == nil {
 			continue
 		}
-		B.inst.L.Lock()
 		I := B.inst.I
-		B.inst.L.Unlock()
 		sys.StartTimer()
 		c, P := B.mdl.Infer(I)
 		B.inst.lP = P
 		B.inst.C = c
 		d := sys.StopTimer()
 		fmt.Printf("Predicted: %d and took %s.\n", c, d)
-		B.usb.Write([]byte{byte(c)})
+		//B.usb.Write([]byte{byte(c)})
 		if B.quit {
-			B.usb.Write([]byte{QUIT})
+			//B.usb.Write([]byte{QUIT})
 			return
 		}
 	}
 }
 
 func (B *Bot) Start() {
-	var wait sync.WaitGroup
-
-	wait.Add(2)
-
 	fmt.Println("Started bot.")
 	go func() {
-		defer wait.Done()
-		fmt.Println("Press 'q' and enter to end the bot's life. :(")
+		fmt.Println("Press '0' and enter to end the bot's life. :(")
+		var c int
 		for {
-			in := bufio.NewReaderSize(os.Stdin, 1)
-			c, _ := in.ReadByte()
-			if c == 113 { // q to quit
+			fmt.Scanf("%d", &c)
+			if c == 0 {
 				B.quit = true
 				return
 			}
 		}
 	}()
 
-	go func() {
-		defer wait.Done()
-		go B.DoCamera()
-		go B.DoInference()
-	}()
+	go B.DoInference()
+	B.DoCamera()
 
-	wait.Wait()
 	fmt.Println("Preparing to shutdown...")
 	time.Sleep(2 * time.Second) // Wait for everything to end.
 	fmt.Println("Bye!")
