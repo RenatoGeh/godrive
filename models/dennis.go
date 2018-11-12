@@ -30,19 +30,13 @@ const (
 type DVModel struct {
 	S     []spn.SPN       // Each sub-SPN S[i] is restricted to label i.
 	Y     *learn.Variable // Y is the query variable. Namely the direction variable.
-	T     []*spn.Storer   // DP tables must be disjoint to be parallelized.
 	procs int             // Number of processes to use for inference.
 }
 
 // NewDVModel creates a new DVModel.
 func NewDVModel(Y *learn.Variable) *DVModel {
 	S := make([]spn.SPN, Y.Categories)
-	T := make([]*spn.Storer, Y.Categories)
-	for i := 0; i < Y.Categories; i++ {
-		T[i] = spn.NewStorer()
-		T[i].NewTicket()
-	}
-	return &DVModel{S, Y, T, 3}
+	return &DVModel{S, Y, 3}
 }
 
 // LearnStructure learns only the DV structure.
@@ -208,12 +202,7 @@ func LoadDVModel(filename string) (*DVModel, error) {
 	var procs int = int(bytes[1])
 	M := &DVModel{}
 	M.S = make([]spn.SPN, n)
-	M.T = make([]*spn.Storer, n)
 	M.procs = procs
-	for i := 0; i < n; i++ {
-		M.T[i] = spn.NewStorer()
-		M.T[i].NewTicket()
-	}
 	bytes = bytes[2:]
 	for i := 0; i < n; i++ {
 		mb := bytes[:8]

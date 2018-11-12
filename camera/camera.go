@@ -37,18 +37,23 @@ func (C *Camera) Update(T func(src gocv.Mat, dst *gocv.Mat)) {
 	C.cam.Read(&C.img)
 	M := gocv.NewMat()
 	gocv.CvtColor(C.img, &M, gocv.ColorBGRToGray)
-	gocv.Resize(M, &M, dims, 0, 0, gocv.InterpolationNearestNeighbor)
+	gocv.Resize(M, &M, dims, 0, 0, gocv.InterpolationLinear)
 	if T != nil {
 		T(M, &C.tImg)
+	} else {
+		C.tImg = M
 	}
 }
 
 // Instance converts a gocv.Mat to an spn.VarSet.
 func (C *Camera) Instance() map[int]int {
-	buffer := C.tImg.DataPtrUint8()
 	I := make(map[int]int)
-	for i, p := range buffer {
-		I[i] = int(p)
+	for x := 0; x < data.Height; x++ {
+		for y := 0; y < data.Width; y++ {
+			q := y + x*data.Width
+			v := int(C.tImg.GetUCharAt(x, y))
+			I[q] = v
+		}
 	}
 	return I
 }

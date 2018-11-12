@@ -12,6 +12,7 @@ var (
 func Binarize(src gocv.Mat, dst *gocv.Mat) {
 	gocv.GaussianBlur(src, dst, unitPoint, 1, 1, gocv.BorderReflect)
 	gocv.Threshold(*dst, dst, 0, 255, gocv.ThresholdOtsu)
+	dst.DivideUChar(255)
 }
 
 func MakeQuantize(max int) func(gocv.Mat, *gocv.Mat) {

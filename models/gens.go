@@ -27,17 +27,11 @@ const (
 type GensModel struct {
 	S     spn.SPN
 	Y     *learn.Variable
-	T     []*spn.Storer
 	procs int
 }
 
 func NewGensModel(Y *learn.Variable) *GensModel {
-	T := make([]*spn.Storer, Y.Categories)
-	for i := range T {
-		T[i] = spn.NewStorer()
-		T[i].NewTicket()
-	}
-	return &GensModel{nil, Y, T, 3}
+	return &GensModel{nil, Y, 3}
 }
 
 func (M *GensModel) LearnStructure(D spn.Dataset, L []int, Sc map[int]*learn.Variable) {
@@ -122,15 +116,9 @@ func LoadGensModel(filename string) (*GensModel, error) {
 	if err != nil {
 		return nil, err
 	}
-	n := int(bytes[0])
 	procs := int(bytes[1])
 	M := &GensModel{}
-	M.T = make([]*spn.Storer, n)
 	M.procs = procs
-	for i := 0; i < n; i++ {
-		M.T[i] = spn.NewStorer()
-		M.T[i].NewTicket()
-	}
 	bytes = bytes[2:]
 	m := binary.LittleEndian.Uint64(bytes[:8])
 	bytes = bytes[8:]

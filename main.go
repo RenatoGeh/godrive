@@ -65,8 +65,9 @@ func Test(t, filename string) {
 	defer B.Close()
 	data.Prepare()
 
+	//B.SetTransform(camera.MakeQuantize(7))
+	B.SetTransform(camera.Binarize)
 	B.Start()
-	B.SetTransform(camera.MakeQuantize(7))
 }
 
 func Sample(t, filename string, m int, tname string) {

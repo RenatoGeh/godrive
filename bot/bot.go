@@ -70,8 +70,8 @@ func (B *Bot) DoCamera() {
 		B.cam.Draw(func(src gocv.Mat, dst *gocv.Mat) {
 			src.CopyTo(dst)
 			up := fmt.Sprintf("Pr(X=UP) = %.3f", B.inst.P[0])
-			left := fmt.Sprintf("Pr(X=LEFT) = %.3f", B.inst.P[1])
-			right := fmt.Sprintf("Pr(X=RIGHT) = %.3f", B.inst.P[2])
+			left := fmt.Sprintf("Pr(X=RIGHT) = %.3f", B.inst.P[1])
+			right := fmt.Sprintf("Pr(X=LEFT) = %.3f", B.inst.P[2])
 			pred := fmt.Sprintf("Predicted: %s", commands[B.inst.C])
 			gocv.PutText(dst, up, upPt, gocv.FontHersheySimplex, 0.5, blue, 2)
 			gocv.PutText(dst, left, leftPt, gocv.FontHersheySimplex, 0.5, blue, 2)
@@ -80,6 +80,7 @@ func (B *Bot) DoCamera() {
 		})
 		B.inst.I = B.cam.Instance()
 		B.inst.P = B.inst.lP
+		time.Sleep(50 * time.Millisecond)
 		if B.quit {
 			return
 		}
