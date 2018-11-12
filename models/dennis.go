@@ -11,6 +11,7 @@ import (
 	"github.com/RenatoGeh/gospn/learn/parameters"
 	"github.com/RenatoGeh/gospn/score"
 	"github.com/RenatoGeh/gospn/spn"
+	"github.com/RenatoGeh/gospn/utils"
 	"io/ioutil"
 	"math"
 	"os"
@@ -146,17 +147,17 @@ func (M *DVModel) Infer(I spn.VarSet) (int, []float64) {
 		Q.Run(func(id int) {
 			Z := M.S[id]
 			p := spn.InferenceY(Z, I, v, id)
-			P[id] = math.Exp(p)
+			P[id] = p
 		}, i)
 	}
 	Q.Wait()
-	pe := P[0] + P[1] + P[2]
+	pe := utils.LogSumExp(P)
 	ml, mp := -1, math.Inf(-1)
 	for i, p := range P {
 		if p > mp {
 			ml, mp = i, p
 		}
-		P[i] = p / pe
+		P[i] = math.Exp(p - pe)
 	}
 	return ml, P
 }
