@@ -20,7 +20,7 @@ func Train(t, l string, n int, filename string, m int, tname string) {
 	var L []int
 	var Sc map[int]*learn.Variable
 
-	if m > 0 {
+	if m <= 0 {
 		D, L, Sc = data.PrepareTrain(n)
 	} else {
 		D, L, Sc = data.PrepareFrom(n, m, tname)
@@ -83,7 +83,7 @@ func Sample(t, filename string, m int, tname string) {
 	const n int = 500
 	var D spn.Dataset
 	var L []int
-	if m > 0 {
+	if m <= 0 {
 		D, L, _ = data.PrepareTrain(n)
 	} else {
 		D, L, _ = data.PrepareFrom(n, m, tname)
@@ -130,7 +130,7 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-			Train(os.Args[3], os.Args[4], n, os.Args[2], m, os.Args[7])
+			Train(os.Args[3], os.Args[4], n, os.Args[2], m+1, os.Args[7])
 		} else {
 			Train(os.Args[3], os.Args[4], n, os.Args[2], -1, "")
 		}
@@ -150,7 +150,7 @@ func main() {
 			if err != nil {
 				panic(err)
 			}
-			Sample(os.Args[3], os.Args[2], m, os.Args[5])
+			Sample(os.Args[3], os.Args[2], m+1, os.Args[5])
 		} else {
 			Sample(os.Args[3], os.Args[2], -1, "")
 		}
