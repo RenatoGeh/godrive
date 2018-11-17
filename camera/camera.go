@@ -17,18 +17,25 @@ type Camera struct {
 	img gocv.Mat
 	// Transformed image matrix
 	tImg gocv.Mat
-	// Window frame
-	win *gocv.Window
+	// Writer
+	w CameraWriter
 }
 
-// New creates a new Camera. Parameter id is the USB device ID to be used.
-func New(id int) (*Camera, error) {
+// New creates a new Camera. Parameter id is the USB device ID to be used. Argument t is type of
+// Writer (Window or direct to file).
+func New(id int, t WriterType) (*Camera, error) {
 	c, err := gocv.OpenVideoCapture(0)
 	if err != nil {
 		return nil, err
 	}
-	win := gocv.NewWindow("Camera")
-	return &Camera{c, gocv.NewMat(), gocv.NewMat(), win}, nil
+	var w CameraWriter
+	if t == WriterTypeWindow {
+		w = NewWindow()
+	} else {
+		width, height := c.Get(gocv.VideoCaptureFrameWidth), c.Get(gocv.VideoCaptureFrameHeight)
+		w = NewRecorder(int(width), int(height))
+	}
+	return &Camera{c, gocv.NewMat(), gocv.NewMat(), w}, nil
 }
 
 // Update applies a transformation to the original video frame. If T is nil, then only apply
@@ -58,22 +65,21 @@ func (C *Camera) Instance() map[int]int {
 	return I
 }
 
-// Draw draws the original video frame to a window. If D is not nil, then apply some drawing
+// Draw draws the original video frame to the writer. If D is not nil, then apply some drawing
 // function to it first.
 func (C *Camera) Draw(D func(src gocv.Mat, dst *gocv.Mat)) {
 	if D == nil {
-		C.win.IMShow(C.img)
+		C.w.Write(C.img)
 	} else {
 		out := gocv.NewMat()
 		D(C.img, &out)
-		C.win.IMShow(out)
-		C.win.WaitKey(1)
+		C.w.Write(out)
 	}
 }
 
 // Close closes all buffers.
 func (C *Camera) Close() {
 	C.cam.Close()
-	C.win.Close()
+	C.w.Close()
 	C.img.Close()
 }

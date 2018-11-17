@@ -44,13 +44,13 @@ type Bot struct {
 	quit bool
 }
 
-func New(id int, M models.Model) (*Bot, error) {
-	C, err := camera.New(id)
+func New(id int, M models.Model, t camera.WriterType) (*Bot, error) {
+	C, err := camera.New(id, t)
 	if err != nil {
 		return nil, err
 	}
-	//P := NewPort()
-	var P *Port
+	P := NewPort()
+	//var P *Port
 	return &Bot{C, P, M, nil, instance{
 		nil,
 		[]float64{0, 0, 0},
@@ -99,9 +99,9 @@ func (B *Bot) DoInference() {
 		B.inst.C = c
 		d := sys.StopTimer()
 		fmt.Printf("Predicted: %d and took %s.\n", c, d)
-		//B.usb.Write([]byte{byte(c)})
+		B.usb.Write([]byte{byte(c)})
 		if B.quit {
-			//B.usb.Write([]byte{QUIT})
+			B.usb.Write([]byte{QUIT})
 			return
 		}
 	}

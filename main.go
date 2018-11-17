@@ -9,10 +9,9 @@ import (
 	"github.com/RenatoGeh/gospn/learn"
 	"github.com/RenatoGeh/gospn/spn"
 	"github.com/RenatoGeh/gospn/sys"
+	"gocv.io/x/gocv"
 	"os"
 	"strconv"
-
-	"runtime/pprof"
 )
 
 func Train(t, l string, n int, filename string, m int, tname string) {
@@ -47,7 +46,7 @@ func Train(t, l string, n int, filename string, m int, tname string) {
 	M.Save(filename)
 }
 
-func Test(t, filename string) {
+func Test(t, filename string, wt camera.WriterType) {
 	var M models.Model
 	var err error
 	if t == "dv" {
@@ -58,15 +57,19 @@ func Test(t, filename string) {
 	if err != nil {
 		panic(err)
 	}
-	B, err := bot.New(0, M)
+	B, err := bot.New(0, M, wt)
 	if err != nil {
 		panic(err)
 	}
 	defer B.Close()
 	data.Prepare()
 
-	//B.SetTransform(camera.MakeQuantize(7))
-	B.SetTransform(camera.Binarize)
+	q := camera.MakeQuantize(3)
+	B.SetTransform(func(src gocv.Mat, dst *gocv.Mat) {
+		camera.Equalize(src, dst)
+		q(src, dst)
+	})
+	//B.SetTransform(camera.Binarize)
 	B.Start()
 }
 
@@ -110,6 +113,7 @@ func main() {
 		fmt.Println("    filename - model to be loaded or saved to")
 		fmt.Println("    dv^gens  - either use the Dennis-Ventura (dv) or Gens (gens) model")
 		fmt.Println("  Test (t) arguments:")
+		fmt.Println("    wt       - camera writer type (0 for window and 1 for file)")
 		fmt.Println("  Train (r) arguments:")
 		fmt.Println("    g^d^s    - either use generative (g) or discriminative (d) learning, or just structure (s)")
 		fmt.Println("    n        - size of dataset to train with")
@@ -136,15 +140,11 @@ func main() {
 			Train(os.Args[3], os.Args[4], n, os.Args[2], -1, "")
 		}
 	} else if mode == "t" {
-		f, err := os.Create("cpu.prof")
+		t, err := strconv.Atoi(os.Args[4])
 		if err != nil {
 			panic(err)
 		}
-		if err := pprof.StartCPUProfile(f); err != nil {
-			panic(err)
-		}
-		defer pprof.StopCPUProfile()
-		Test(os.Args[3], os.Args[2])
+		Test(os.Args[3], os.Args[2], camera.WriterType(t))
 	} else if mode == "s" {
 		if len(os.Args) == 6 {
 			m, err := strconv.Atoi(os.Args[4])
